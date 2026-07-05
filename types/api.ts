@@ -97,3 +97,33 @@ export interface UiChatMessage extends ChatMessage {
   pending?: boolean;
   error?: string;
 }
+
+// --- Notebooks / conversations / notes (persistes en base) ---
+
+export interface Notebook {
+  id: string; // slug technique (= workspace)
+  title: string; // titre libre affiche
+  created_at?: string | null;
+}
+
+export interface NotebooksResponse {
+  notebooks: Notebook[];
+  default: string;
+}
+
+// Message tel que persiste cote serveur (id numerique).
+export interface StoredMessage {
+  id: number;
+  role: ChatRole;
+  content: string;
+  sources?: Source[] | null;
+  cited?: number[] | null;
+  model?: string | null;
+  created_at?: string | null;
+}
+
+export interface Note {
+  id: number;
+  text: string;
+  created_at?: string | null;
+}

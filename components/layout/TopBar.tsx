@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AppBar from "@mui/material/AppBar";
 import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
@@ -16,7 +16,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
 import TextField from "@mui/material/TextField";
 import AutoStoriesIcon from "@mui/icons-material/AutoStories";
-import { useWorkspaces } from "@/hooks/useWorkspaces";
+import { useNotebooks, useNotebookMutations } from "@/hooks/useNotebooks";
 import { useModels } from "@/hooks/useModels";
 import { useUiStore } from "@/stores/uiStore";
 import { LABELS } from "@/lib/vocab";
@@ -24,33 +24,40 @@ import { LABELS } from "@/lib/vocab";
 const NEW_NOTEBOOK = "__new__";
 
 export function TopBar() {
-  const { data: ws } = useWorkspaces();
+  const { data: notebooksData } = useNotebooks();
   const { data: modelsData } = useModels();
+  const { create } = useNotebookMutations();
   const activeNotebook = useUiStore((s) => s.activeNotebook);
   const setActiveNotebook = useUiStore((s) => s.setActiveNotebook);
   const selectedModel = useUiStore((s) => s.selectedModel);
   const setSelectedModel = useUiStore((s) => s.setSelectedModel);
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [newName, setNewName] = useState("");
+  const [newTitle, setNewTitle] = useState("");
 
-  // Au premier chargement : notebook actif = workspace serveur par defaut.
+  const notebooks = useMemo(() => notebooksData?.notebooks ?? [], [notebooksData]);
+  const models = modelsData?.models ?? [];
+
+  // Au premier chargement : notebook actif = notebook par defaut du serveur.
   useEffect(() => {
-    if (!activeNotebook && ws?.default) setActiveNotebook(ws.default);
-  }, [activeNotebook, ws?.default, setActiveNotebook]);
+    if (!activeNotebook && notebooksData?.default) {
+      setActiveNotebook(notebooksData.default);
+    }
+  }, [activeNotebook, notebooksData?.default, setActiveNotebook]);
 
-  // Modele par defaut = defaut serveur.
   useEffect(() => {
     if (!selectedModel && modelsData?.default) setSelectedModel(modelsData.default);
   }, [selectedModel, modelsData?.default, setSelectedModel]);
 
-  const notebooks = Array.from(
-    new Set([
-      ...(ws?.workspaces ?? []),
-      ...(activeNotebook ? [activeNotebook] : []),
-    ]),
-  );
-  const models = modelsData?.models ?? [];
+  // Options du selecteur : notebooks connus, + l'actif s'il n'y figure pas encore
+  // (fenetre entre creation et rafraichissement de la liste).
+  const options = useMemo(() => {
+    const list = notebooks.map((n) => ({ id: n.id, title: n.title }));
+    if (activeNotebook && !list.some((n) => n.id === activeNotebook)) {
+      list.unshift({ id: activeNotebook, title: activeNotebook });
+    }
+    return list;
+  }, [notebooks, activeNotebook]);
 
   const onNotebookChange = (e: SelectChangeEvent<string>) => {
     const value = e.target.value;
@@ -62,9 +69,12 @@ export function TopBar() {
   };
 
   const confirmNew = () => {
-    const name = newName.trim();
-    if (name) setActiveNotebook(name);
-    setNewName("");
+    const title = newTitle.trim();
+    if (!title) return;
+    create.mutate(title, {
+      onSuccess: (notebook) => setActiveNotebook(notebook.id),
+    });
+    setNewTitle("");
     setDialogOpen(false);
   };
 
@@ -80,16 +90,16 @@ export function TopBar() {
           {LABELS.notebooks}
         </Typography>
 
-        <FormControl size="small" sx={{ minWidth: 200 }}>
+        <FormControl size="small" sx={{ minWidth: 220 }}>
           <Select value={activeNotebook ?? ""} displayEmpty onChange={onNotebookChange}>
-            {notebooks.length === 0 && (
+            {options.length === 0 && (
               <MenuItem value="" disabled>
                 Aucun notebook
               </MenuItem>
             )}
-            {notebooks.map((n) => (
-              <MenuItem key={n} value={n}>
-                {n}
+            {options.map((n) => (
+              <MenuItem key={n.id} value={n.id}>
+                {n.title}
               </MenuItem>
             ))}
             <MenuItem value={NEW_NOTEBOOK}>➕ {LABELS.newNotebook}…</MenuItem>
@@ -122,11 +132,11 @@ export function TopBar() {
             autoFocus
             fullWidth
             margin="dense"
-            label="Nom du notebook"
-            placeholder="ex. projet-alpha"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            helperText="Lettres, chiffres, '.', '-', '_' (1 à 64 caractères)."
+            label="Titre du notebook"
+            placeholder="ex. Warhammer paint"
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            helperText="Titre libre (espaces et majuscules autorisés)."
             onKeyDown={(e) => {
               if (e.key === "Enter") confirmNew();
             }}
@@ -134,7 +144,7 @@ export function TopBar() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDialogOpen(false)}>Annuler</Button>
-          <Button variant="contained" onClick={confirmNew} disabled={!newName.trim()}>
+          <Button variant="contained" onClick={confirmNew} disabled={!newTitle.trim()}>
             Créer
           </Button>
         </DialogActions>

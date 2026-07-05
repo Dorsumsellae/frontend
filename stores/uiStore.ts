@@ -1,13 +1,10 @@
-// Etat UI (Zustand) : notebook actif, sources selectionnees, conversation, notes.
-// L'etat serveur (workspaces, documents, models) est gere par TanStack Query.
+// Etat UI (Zustand) : notebook actif, sources selectionnees, conversation courante.
+// Les notebooks, l'historique persiste et les notes viennent du serveur (TanStack
+// Query). La conversation « vivante » est ici ; elle est hydratee a l'ouverture d'un
+// notebook depuis l'historique persiste, puis alimentee par les tours de chat.
 
 import { create } from "zustand";
 import type { UiChatMessage } from "@/types/api";
-
-export interface Note {
-  id: string;
-  text: string;
-}
 
 export interface HighlightedSource {
   filename: string;
@@ -19,21 +16,18 @@ interface UiState {
   selectedFilenames: Set<string>;
   selectedModel: string | null;
   messages: UiChatMessage[];
-  notes: Note[];
   highlightedSource: HighlightedSource | null;
 
-  setActiveNotebook: (workspace: string) => void;
+  setActiveNotebook: (notebookId: string) => void;
   toggleSource: (filename: string) => void;
   setSelectedSources: (filenames: string[]) => void;
   clearSelection: () => void;
   setSelectedModel: (model: string | null) => void;
 
+  setMessages: (messages: UiChatMessage[]) => void;
   addMessage: (message: UiChatMessage) => void;
   updateMessage: (id: string, patch: Partial<UiChatMessage>) => void;
   clearMessages: () => void;
-
-  addNote: (text: string) => void;
-  removeNote: (id: string) => void;
 
   setHighlightedSource: (highlight: HighlightedSource | null) => void;
 }
@@ -50,13 +44,12 @@ export const useUiStore = create<UiState>((set) => ({
   selectedFilenames: new Set<string>(),
   selectedModel: null,
   messages: [],
-  notes: [],
   highlightedSource: null,
 
-  // Changer de notebook reinitialise la selection et la conversation.
-  setActiveNotebook: (workspace) =>
+  // Changer de notebook reinitialise la selection et la conversation (rehydratee ensuite).
+  setActiveNotebook: (notebookId) =>
     set({
-      activeNotebook: workspace,
+      activeNotebook: notebookId,
       selectedFilenames: new Set<string>(),
       messages: [],
       highlightedSource: null,
@@ -75,6 +68,7 @@ export const useUiStore = create<UiState>((set) => ({
   clearSelection: () => set({ selectedFilenames: new Set<string>() }),
   setSelectedModel: (model) => set({ selectedModel: model }),
 
+  setMessages: (messages) => set({ messages }),
   addMessage: (message) =>
     set((state) => ({ messages: [...state.messages, message] })),
   updateMessage: (id, patch) =>
@@ -82,11 +76,6 @@ export const useUiStore = create<UiState>((set) => ({
       messages: state.messages.map((m) => (m.id === id ? { ...m, ...patch } : m)),
     })),
   clearMessages: () => set({ messages: [] }),
-
-  addNote: (text) =>
-    set((state) => ({ notes: [...state.notes, { id: genId(), text }] })),
-  removeNote: (id) =>
-    set((state) => ({ notes: state.notes.filter((n) => n.id !== id) })),
 
   setHighlightedSource: (highlight) => set({ highlightedSource: highlight }),
 }));

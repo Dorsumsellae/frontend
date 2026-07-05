@@ -5,12 +5,19 @@ import Typography from "@mui/material/Typography";
 import Divider from "@mui/material/Divider";
 import { useUiStore } from "@/stores/uiStore";
 import { useDocuments } from "@/hooks/useDocuments";
+import { useNotebooks } from "@/hooks/useNotebooks";
 import { NotebookGuide } from "./NotebookGuide";
 import { SavedNotes } from "./SavedNotes";
 
 export function StudioPanel() {
   const activeNotebook = useUiStore((s) => s.activeNotebook);
   const { data: documents = [] } = useDocuments(activeNotebook);
+  const { data: notebooksData } = useNotebooks();
+
+  const title =
+    notebooksData?.notebooks.find((n) => n.id === activeNotebook)?.title ??
+    activeNotebook ??
+    "—";
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -19,7 +26,7 @@ export function StudioPanel() {
           Studio
         </Typography>
         <Typography variant="caption" color="text.secondary">
-          {activeNotebook ?? "—"} · {documents.length} source(s)
+          {title} · {documents.length} source(s)
         </Typography>
       </Box>
       <Divider />

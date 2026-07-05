@@ -11,7 +11,11 @@ import type {
   IndexResponse,
   IngestYoutubeResponse,
   ModelsResponse,
+  Note,
+  Notebook,
+  NotebooksResponse,
   ResetResponse,
+  StoredMessage,
   UploadResponse,
   WorkspacesResponse,
 } from "@/types/api";
@@ -43,13 +47,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await resp.json()) as T;
 }
 
-function jsonInit(body: unknown): RequestInit {
+function jsonInit(body: unknown, method = "POST"): RequestInit {
   return {
-    method: "POST",
+    method,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   };
 }
+
+const enc = encodeURIComponent;
 
 export const api = {
   getWorkspaces: () => request<WorkspacesResponse>("/workspaces"),
@@ -115,4 +121,40 @@ export const api = {
         ...(params.topK ? { top_k: params.topK } : {}),
       }),
     ),
+
+  // --- Notebooks / conversations / notes (persistes) ---
+
+  getNotebooks: () => request<NotebooksResponse>("/notebooks"),
+
+  createNotebook: (title: string) =>
+    request<Notebook>("/notebooks", jsonInit({ title })),
+
+  renameNotebook: (id: string, title: string) =>
+    request<Notebook>(`/notebooks/${enc(id)}`, jsonInit({ title }, "PATCH")),
+
+  deleteNotebook: (id: string) =>
+    request<{ deleted: string }>(`/notebooks/${enc(id)}`, { method: "DELETE" }),
+
+  getMessages: (id: string): Promise<StoredMessage[]> =>
+    request<{ notebook_id: string; messages: StoredMessage[] }>(
+      `/notebooks/${enc(id)}/messages`,
+    ).then((r) => r.messages),
+
+  clearMessages: (id: string) =>
+    request<{ messages_removed: number }>(`/notebooks/${enc(id)}/messages`, {
+      method: "DELETE",
+    }),
+
+  getNotes: (id: string): Promise<Note[]> =>
+    request<{ notebook_id: string; notes: Note[] }>(
+      `/notebooks/${enc(id)}/notes`,
+    ).then((r) => r.notes),
+
+  addNote: (id: string, text: string) =>
+    request<Note>(`/notebooks/${enc(id)}/notes`, jsonInit({ text })),
+
+  deleteNote: (id: string, noteId: number) =>
+    request<{ deleted: number }>(`/notebooks/${enc(id)}/notes/${noteId}`, {
+      method: "DELETE",
+    }),
 };
