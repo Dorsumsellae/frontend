@@ -33,7 +33,9 @@ COPY --from=builder /app/public ./public
 
 EXPOSE 3000
 
+# 127.0.0.1 (IPv4) et non localhost : le serveur Next ecoute en IPv4 (0.0.0.0),
+# alors que localhost peut resoudre vers ::1 (IPv6) et faire echouer la sonde.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD wget -qO- http://localhost:3000/ >/dev/null 2>&1 || exit 1
+  CMD wget -qO- http://127.0.0.1:3000/ >/dev/null 2>&1 || exit 1
 
 CMD ["node", "server.js"]
