@@ -1,5 +1,10 @@
-__pycache__/
-*.pyc
-.venv/
-venv/
+node_modules
+.next
+out
+.git
 .env
+.env*.local
+npm-debug.log*
+Dockerfile
+.dockerignore
+README.md

@@ -1,3 +1,0 @@
-streamlit==1.41.1
-# Alignee sur la version du backend (backend/requirements.txt) pour une stack coherente.
-requests==2.34.2
